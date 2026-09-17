@@ -29,7 +29,7 @@
   }
   .results-group-primary {
     display: grid;
-    grid-template-columns: minmax(200px, 1fr) minmax(420px, 1.4fr);
+    grid-template-columns: minmax(160px, 1fr) minmax(520px, 1.8fr);
     gap: 16px;
   }
   .results-map-column,
@@ -54,19 +54,29 @@
   }
   .shelter-card {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 240px;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 2fr) minmax(0, 2fr);
+    gap: 12px;
     min-height: 95px;
     margin-bottom: 12px;
+    background: transparent;
+  }
+  .shelter-card:last-child { margin-bottom: 0; }
+  .shelter-card-main,
+  .shelter-card-congestion,
+  .shelter-card-features {
+    min-width: 0;
+    padding: 10px 12px;
     border: 1px solid #aaa;
     background: #fff;
   }
-  .shelter-card:last-child { margin-bottom: 0; }
-  .shelter-card-main { padding: 10px 12px; }
   .shelter-card-name {
     margin: 0 0 4px;
     font-size: 20px;
     font-weight: 400;
     line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .shelter-card-detail {
     margin: 0;
@@ -74,17 +84,32 @@
     line-height: 1.4;
   }
   .shelter-card-detail a { color: #168bd0; }
-  .shelter-card-meta {
+  .shelter-card-congestion,
+  .shelter-card-features {
     display: flex;
-    flex-direction: row;
     justify-content: center;
     align-items: center;
-    gap: 12px;
-    padding: 8px 10px;
-    border-left: 1px solid #aaa;
     font-size: 14px;
     text-align: center;
     background-color: #fafafa;
+  }
+  .shelter-card-congestion { flex-direction: column; }
+  .shelter-card-congestion .shelter-congestion { white-space: nowrap; }
+  .shelter-card-congestion .shelter-congestion strong {
+    display: block;
+    white-space: nowrap;
+  }
+  .shelter-card-features .feature-icons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, auto);
+    gap: 4px;
+    width: 100%;
+  }
+  .shelter-card-features .feature-item { min-width: 0; }
+  .shelter-card-features .feature-item .label {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .congestion-green { color: #16a34a; font-weight: bold; }
   .congestion-orange { color: #f17d3f; font-weight: bold; }
@@ -113,36 +138,47 @@
     white-space: nowrap;
   }
   .shelter-card-inline {
-    display: flex;
-    align-items: center;
-    flex-wrap: nowrap;
-    gap: 12px 16px;
-    padding: 10px 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px 240px;
+    gap: 12px;
+    padding: 0;
     margin-bottom: 8px;
-    border: 1px solid #aaa;
     background: #fff;
     font-size: 14px;
   }
   .shelter-card-inline:last-child { margin-bottom: 0; }
+  .shelter-card-inline .shelter-card-inline-main,
+  .shelter-card-inline .shelter-card-inline-congestion,
+  .shelter-card-inline .shelter-card-inline-features {
+    min-width: 0;
+    padding: 10px 14px;
+    border: 1px solid #aaa;
+  }
+  .shelter-card-inline .shelter-card-inline-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+  }
   .shelter-card-inline .shelter-name {
     font-size: 16px;
     font-weight: bold;
     color: #111827;
-    white-space: nowrap;
   }
   .shelter-card-inline .shelter-route { white-space: nowrap; }
   .shelter-card-inline .shelter-route a { color: #168bd0; }
-  .shelter-card-inline .shelter-address { color: #374151; }
+  .shelter-card-inline .shelter-card-inline-congestion,
+  .shelter-card-inline .shelter-card-inline-features {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fafafa;
+  }
+  .shelter-card-inline .shelter-card-inline-features { gap: 14px; }
   .shelter-card-inline .shelter-congestion {
     font-size: 14px;
     color: #4b5563;
     white-space: nowrap;
-  }
-  .shelter-card-inline .feature-icons-inline {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   .custom-pin-icon {
     background: transparent !important;
@@ -176,12 +212,13 @@
   @media (max-width: 768px) {
     .results-group { padding: 16px; }
     .results-group-primary { grid-template-columns: 1fr; }
-    .shelter-card { grid-template-columns: minmax(0, 1fr) 220px; }
+    .shelter-card { grid-template-columns: 1fr; }
     .results-map { height: 260px; }
     .results-actions { flex-wrap: wrap; gap: 10px; }
     .results-actions a { flex: 1 1 140px; }
-    .shelter-card-inline { flex-wrap: wrap; }
-    .shelter-card-inline .feature-icons-inline { margin-left: 0; }
+    .shelter-card-inline { grid-template-columns: 1fr; }
+    .shelter-card-inline .shelter-card-inline-congestion,
+    .shelter-card-inline .shelter-card-inline-features { justify-content: flex-start; }
   }
 </style>
 
@@ -196,24 +233,23 @@
 
     <div class="results-list-column">
       <h3 class="results-group-title">現在地に近い避難所</h3>
-      {% if results %}
-        {% for shelter in results[:3] %}
+      {% if primary_results %}
+        {% for shelter in primary_results %}
         <article class="shelter-card">
           <div class="shelter-card-main">
             <p class="shelter-card-name">{{ loop.index }}．{{ shelter.name }}</p>
             <p class="shelter-card-detail">
-              ルート：<a href="https://www.google.com/maps/search/?api=1&query={{ shelter.name }}" target="_blank" rel="noopener noreferrer">マップのリンク</a><br>
-              住所：{{ shelter.address or '未登録' }}<br>
-              詳細：{{ shelter.details or '未登録' }}
+              ルート：<a href="https://www.google.com/maps/search/?api=1&query={{ shelter.address|urlencode }}" target="_blank" rel="noopener noreferrer">Googleマップで開く</a><br>
+              住所：{{ shelter.address or '未登録' }}
             </p>
           </div>
-          <div class="shelter-card-meta">
-            <div>
-              混雑度<br>
+          <div class="shelter-card-congestion">
+              <span class="shelter-congestion-label">[混雑度]</span>
               <strong class="{% if shelter.congestion in ['空きあり', '空き有り'] %}congestion-green{% elif '混雑' in shelter.congestion %}congestion-orange{% elif shelter.congestion == '満員' %}congestion-red{% endif %}">
                 {{ shelter.congestion }}
               </strong>
-            </div>
+          </div>
+          <div class="shelter-card-features">
             <div class="feature-icons">
               {% if shelter.pregnant %}<div class="feature-item"><span class="icon">🤰</span><span class="label">妊婦</span></div>{% endif %}
               {% if shelter.wheelchair %}<div class="feature-item"><span class="icon">♿</span><span class="label">車いす</span></div>{% endif %}
@@ -230,25 +266,28 @@
   <div class="results-group results-secondary">
     <div class="results-secondary-column">
       <h3 class="results-group-title">その他の避難所はこちら</h3>
-      {% if results and results[3:] %}
-        {% for shelter in results[3:] %}
+      {% if secondary_results %}
+        {% for shelter in secondary_results %}
         <div class="shelter-card-inline">
-          <span class="shelter-name">{{ loop.index + 3 }}．{{ shelter.name }}</span>
-          <span class="shelter-route">ルート：<a href="https://www.google.com/maps/search/?api=1&query={{ shelter.name }}" target="_blank" rel="noopener noreferrer">マップのリンク</a></span>
-          <span class="shelter-address">住所：{{ shelter.address or '未登録' }}</span>
-          <span class="shelter-address">詳細：{{ shelter.details or '未登録' }}</span>
-          <span class="shelter-congestion">混雑度：<strong class="{% if shelter.congestion in ['空きあり', '空き有り'] %}congestion-green{% elif '混雑' in shelter.congestion %}congestion-orange{% elif shelter.congestion == '満員' %}congestion-red{% endif %}">{{ shelter.congestion }}</strong></span>
-          <div class="feature-icons-inline">
+          <div class="shelter-card-inline-main">
+            <span class="shelter-name">{{ loop.index + 3 }}．{{ shelter.name }}</span>
+            <span class="shelter-route">ルート：<a href="https://www.google.com/maps/search/?api=1&query={{ shelter.address|urlencode }}" target="_blank" rel="noopener noreferrer">Googleマップで開く</a></span>
+          </div>
+          <div class="shelter-card-inline-congestion">
+            <span class="shelter-congestion">混雑度：<strong class="{% if shelter.congestion in ['空きあり', '空き有り'] %}congestion-green{% elif '混雑' in shelter.congestion %}congestion-orange{% elif shelter.congestion == '満員' %}congestion-red{% endif %}">{{ shelter.congestion }}</strong></span>
+          </div>
+          <div class="shelter-card-inline-features">
             <div class="feature-icons">
               {% if shelter.pregnant %}<div class="feature-item"><span class="icon">🤰</span><span class="label">妊婦</span></div>{% endif %}
               {% if shelter.wheelchair %}<div class="feature-item"><span class="icon">♿</span><span class="label">車いす</span></div>{% endif %}
               {% if shelter.pet %}<div class="feature-item"><span class="icon">🐾</span><span class="label">ペット同伴</span></div>{% endif %}
               {% if shelter.disability or shelter.help %}<div class="feature-item"><span class="icon">🤝</span><span class="label">障がいのある方</span></div>{% endif %}
+              {% if shelter.medical %}<div class="feature-item"><span class="icon">🩹</span><span class="label">救急対応</span></div>{% endif %}
             </div>
           </div>
         </div>
         {% endfor %}
-      {% elif not results %}
+      {% elif not primary_results and not secondary_results %}
         <p class="results-empty">該当する避難所が見つかりませんでした</p>
       {% else %}
         <p class="results-empty">4番目以降の避難所はありません。</p>
@@ -258,7 +297,7 @@
 
   <div class="results-actions">
     <a href="/shelter_search">検索に戻る</a>
-    <a href="/">トップページへ戻る</a>
+    <a href="/">ホーム画面へ戻る</a>
   </div>
 </section>
 
@@ -295,14 +334,6 @@
       weight: 3
     }).addTo(map).bindPopup('<b>現在地</b>');
 
-    const pinIcon = L.divIcon({
-      html: '<span style="font-size: 26px; line-height: 1;">📍</span>',
-      className: 'custom-pin-icon',
-      iconSize: [28, 28],
-      iconAnchor: [14, 28],
-      popupAnchor: [0, -25]
-    });
-
     const shelterDataElement = document.getElementById('shelter-data');
     const shelters = shelterDataElement ? JSON.parse(shelterDataElement.textContent) : [];
 
@@ -311,7 +342,7 @@
         const latitude = shelter.latitude ?? shelter.lat;
         const longitude = shelter.longitude ?? shelter.lng;
         if (latitude !== undefined && longitude !== undefined) {
-          L.marker([latitude, longitude], { icon: pinIcon })
+          L.marker([latitude, longitude])
             .addTo(map)
             .bindPopup(`<b>${index + 1}．${shelter.name}</b><br>住所：${shelter.address || '未登録'}`);
         }

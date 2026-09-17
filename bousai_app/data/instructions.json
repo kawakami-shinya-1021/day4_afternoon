@@ -61,9 +61,9 @@
       "20代未満を含む"
     ],
     "shelter": "",
-    "status": "発信中",
+    "status": "解除",
     "created_at": "2026年09月17日 11:40",
-    "updated_at": "2026年09月17日 11:40"
+    "updated_at": "2026年09月17日 15:10"
   },
   {
     "id": 7,
@@ -95,8 +95,90 @@
       "60代以上"
     ],
     "shelter": "",
-    "status": "発信中",
+    "status": "解除",
     "created_at": "2026年09月17日 12:24",
-    "updated_at": "2026年09月17日 12:24"
+    "updated_at": "2026年09月17日 14:08"
+  },
+  {
+    "id": 9,
+    "target": "住民",
+    "title": "あああ",
+    "content": "あああ",
+    "priority": "中",
+    "region": "全地域",
+    "age_groups": [
+      "20代未満を含む",
+      "20〜50代",
+      "60代以上"
+    ],
+    "shelter": "",
+    "status": "解除",
+    "created_at": "2026年09月17日 15:12",
+    "updated_at": "2026年09月17日 15:12"
+  },
+  {
+    "id": 10,
+    "target": "住民",
+    "title": "ああああ",
+    "content": "あああああああ",
+    "priority": "中",
+    "region": "北部",
+    "age_groups": [
+      "20代未満を含む",
+      "20〜50代",
+      "60代以上"
+    ],
+    "shelter": "",
+    "status": "解除",
+    "created_at": "2026年09月17日 15:44",
+    "updated_at": "2026年09月17日 15:44"
+  },
+  {
+    "id": 11,
+    "target": "住民",
+    "title": "あああああああああ",
+    "content": "ああああああああああああ",
+    "priority": "中",
+    "region": "北部",
+    "age_groups": [
+      "20代未満を含む",
+      "60代以上"
+    ],
+    "shelter": "",
+    "status": "発信中",
+    "created_at": "2026年09月17日 15:44",
+    "updated_at": "2026年09月17日 15:44"
+  },
+  {
+    "id": 12,
+    "target": "住民",
+    "title": "っっっっｊ",
+    "content": "っっｊ",
+    "priority": "高",
+    "region": "全地域",
+    "age_groups": [
+      "20〜50代"
+    ],
+    "shelter": "",
+    "status": "解除",
+    "created_at": "2026年09月17日 15:48",
+    "updated_at": "2026年09月17日 15:48"
+  },
+  {
+    "id": 13,
+    "target": "住民",
+    "title": "ああああ",
+    "content": "ああああああああ",
+    "priority": "高",
+    "region": "全地域",
+    "age_groups": [
+      "20代未満を含む",
+      "20〜50代",
+      "60代以上"
+    ],
+    "shelter": "",
+    "status": "発信中",
+    "created_at": "2026年09月17日 15:48",
+    "updated_at": "2026年09月17日 15:48"
   }
 ]

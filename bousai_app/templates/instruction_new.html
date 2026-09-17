@@ -107,7 +107,7 @@
   <h2>新規登録</h2>
   <div class="register-panel">
     {% if error %}
-      <p class="form-error" role="alert">タイトル、内容、重要度、対象地域、対象年齢をすべて入力してください。</p>
+      <p class="form-error" role="alert">タイトル、内容、重要度、対象地域を入力し、対象年齢を1つ以上選択してください。</p>
     {% endif %}
 
     <form class="register-form" method="post" id="instructionRegisterForm" action="{{ url_for('instruction_new') }}">
@@ -148,7 +148,7 @@
         <div class="age-options">
           {% for age_group in age_groups %}
           <label class="choice-label">
-            <input class="age-group-input" type="checkbox" name="age_groups" value="{{ age_group }}"{% if loop.first %} required{% endif %}{% if age_group in form_values.age_groups %} checked{% endif %}>
+            <input class="age-group-input" type="checkbox" name="age_groups" value="{{ age_group }}"{% if age_group in form_values.age_groups %} checked{% endif %}>
             {{ age_group }}
           </label>
           {% endfor %}
@@ -161,6 +161,7 @@
 
       <div class="form-actions">
         <a class="back-link" href="{{ url_for('board') }}">戻る</a>
+        <a class="back-link" href="{{ url_for('resolved_instructions') }}">解除済み情報一覧</a>
         <button class="submit-button" type="submit">送信</button>
       </div>
     </form>

@@ -9,6 +9,7 @@
     "wheelchair": true,
     "pet": true,
     "help": true,
+    "pregnant": true,
     "medical": false
   },
   {
@@ -21,6 +22,7 @@
     "wheelchair": true,
     "pet": false,
     "help": true,
+    "pregnant": true,
     "medical": true
   },
   {

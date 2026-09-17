@@ -49,6 +49,7 @@
 
 <div class="instruction-board-actions">
   <a href="{{ url_for('instruction_new') }}">新規登録</a>
+  <a href="{{ url_for('resolved_instructions') }}" style="margin-left: 12px;">解除済み情報一覧</a>
 </div>
 {% if instructions %}
 <div class="instruction-table-wrap">
@@ -65,7 +66,7 @@
     </td>
     <td><a href="{{ url_for('instruction_detail', instruction_id=inst.id) }}" aria-label="詳細を表示">…</a></td>
     <td>
-      <form method="post" action="{{ url_for('instruction_dismiss', instruction_id=inst.id) }}">
+      <form method="post" action="{{ url_for('instruction_dismiss', instruction_id=inst.id) }}" onsubmit="return confirm('解除通知を送信してよろしいですか？');">
         <button class="instruction-dismiss" type="submit"{% if inst.status == '解除' %} disabled{% endif %}>解除通知を送信</button>
       </form>
     </td>

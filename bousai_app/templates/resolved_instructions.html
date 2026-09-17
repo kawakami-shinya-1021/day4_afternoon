@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}解除済み情報一覧 - 防災アプリ{% endblock %}
+
+{% block content %}
+<style>
+  .instruction-board {
+    width: min(1200px, calc(100vw - 64px));
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
+  .instruction-board h2 { margin-bottom: 8px; }
+  .instruction-board > p { padding: 0; }
+  .instruction-board-actions { margin: 16px 0; }
+  .instruction-board-actions a {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 7px;
+    color: #fff;
+    background: #2e5eae;
+    text-decoration: none;
+  }
+  .instruction-table-wrap {
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid #e1e7ee;
+    border-radius: 18px;
+    box-shadow: 0 5px 20px rgba(55, 81, 112, .08);
+  }
+  .instruction-table { min-width: 900px; }
+  .instruction-table th { color: #fff; background: #2457a6; }
+  .instruction-table th, .instruction-table td { border-color: #edf1f5; vertical-align: top; white-space: nowrap; }
+  .instruction-table th:nth-child(1), .instruction-table td:nth-child(1) { width: 170px; }
+  .instruction-table th:nth-child(2), .instruction-table td:nth-child(2) { width: 100px; }
+  .instruction-table th:nth-child(4), .instruction-table td:nth-child(4) { width: 100px; }
+  .instruction-table th:last-child, .instruction-table td:last-child { width: 150px; }
+  .instruction-content-link { color: inherit; text-decoration: none; white-space: nowrap; }
+  .instruction-content-link:hover { text-decoration: underline; }
+  .resolved-badge {
+    display: inline-block;
+    margin-right: 8px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: #14532d;
+    background: #dcfce7;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .priority { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; }
+  .priority-high { color: #b42318; background: #fee4e2; }
+  .priority-medium { color: #854d0e; background: #fef3c7; }
+  .priority-low { color: #475569; background: #eef2f6; }
+  @media (max-width: 640px) {
+    .instruction-board { width: calc(100vw - 20px); }
+    .instruction-table-wrap { border-radius: 14px; }
+  }
+</style>
+
+<section class="instruction-board">
+  <h2>解除済み情報一覧</h2>
+  <p>解除済みの住民向け指示をまとめて確認できます。</p>
+
+  <div class="instruction-board-actions">
+    <a href="{{ url_for('board') }}">指示・発信ボードへ戻る</a>
+  </div>
+
+  {% if instructions %}
+  <div class="instruction-table-wrap">
+    <table class="instruction-table">
+      <thead>
+        <tr>
+          <th>解除日時</th>
+          <th>重要度</th>
+          <th>内容</th>
+          <th>詳細設定</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inst in instructions %}
+        {% set priority_class = {'高': 'priority-high', '中': 'priority-medium', '低': 'priority-low'}[inst.priority] %}
+        <tr>
+          <td>{{ inst.updated_at or inst.created_at }}</td>
+          <td><span class="priority {{ priority_class }}">{{ inst.priority }}</span></td>
+          <td>
+            <a class="instruction-content-link" href="{{ url_for('instruction_detail', instruction_id=inst.id) }}"><span class="resolved-badge">【解除済み】</span>{{ inst.content }}{% if inst.shelter %}（避難先: {{ inst.shelter }}）{% endif %}</a>
+          </td>
+          <td><a href="{{ url_for('instruction_detail', instruction_id=inst.id) }}" aria-label="詳細を表示">…</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p>解除済みの情報はありません。</p>
+  {% endif %}
+</section>
+{% endblock %}

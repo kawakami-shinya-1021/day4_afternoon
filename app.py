@@ -203,6 +203,34 @@ def sort_instructions_newest_first(instruction_list):
     return sorted(instruction_list, key=sort_key, reverse=True)
 
 
+def prune_resolved_instructions(instruction_list):
+    """解除済みの指示が5件を超えた場合、古い順に削除する"""
+    resolved_instructions = [
+        instruction for instruction in instruction_list
+        if instruction.get('target') == '住民' and instruction.get('status') == '解除'
+    ]
+    other_instructions = [
+        instruction for instruction in instruction_list
+        if not (instruction.get('target') == '住民' and instruction.get('status') == '解除')
+    ]
+
+    def sort_key(instruction):
+        created_at = instruction.get('created_at', '')
+        try:
+            return datetime.strptime(created_at, '%Y年%m月%d日 %H:%M')
+        except (TypeError, ValueError):
+            return datetime.min
+
+    resolved_instructions = sorted(resolved_instructions, key=sort_key)
+    if len(resolved_instructions) > 5:
+        resolved_instructions = resolved_instructions[-5:]
+
+    return other_instructions + resolved_instructions
+
+
+instructions = prune_resolved_instructions(instructions)
+
+
 def instruction_form_values(source):
     """指示登録フォームの値を読み込み、許可値を検証する"""
     title = source.get('title', '').strip()
@@ -246,7 +274,7 @@ def filter_shelters(district=None):
     return [s for s in shelters if not district or s.get('district') == district]
 
 
-SEARCH_CONDITIONS = ('pregnant', 'wheelchair', 'pet', 'disability')
+SEARCH_CONDITIONS = ('wheelchair', 'pet', 'disability', 'pregnant')
 
 
 def get_shelter_coordinates(shelter):
@@ -286,7 +314,7 @@ def shelter_form_values(source):
         errors.append('最大収容人数は0以上の整数で入力してください。')
         capacity = None
 
-    valid_options = {'車いす対応可', 'ペット同伴可', '福祉避難所'}
+    valid_options = {'車いす対応可', 'ペット同伴可', '福祉避難所', '妊婦対応可'}
     if not isinstance(support_options, list):
         support_options = []
     support_options = [option for option in support_options if option in valid_options]
@@ -331,6 +359,7 @@ def apply_shelter_values(shelter, values):
         'wheelchair': '車いす対応可' in values['support_options'],
         'pet': 'ペット同伴可' in values['support_options'],
         'disability': '福祉避難所' in values['support_options'],
+        'pregnant': '妊婦対応可' in values['support_options'],
     })
 
 
@@ -470,12 +499,12 @@ def index():
 # ログインページ
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # リダイレクト先を取得（デフォルトは避難所登録画面）
+    # リダイレクト先を取得（デフォルトはホーム画面）
     next_url = request.args.get('next') or request.form.get('next')
 
     # 安全でないURLの場合はデフォルトページにリダイレクト
     if not next_url or not is_safe_url(next_url):
-        next_url = url_for('shelter_register')
+        next_url = url_for('index')
 
     if request.method == 'POST':
         password = request.form.get('password', '').strip()
@@ -558,7 +587,7 @@ def api_geocode():
 def api_map_tiles(zoom, x, y):
     if not 0 <= zoom <= 19 or not 0 <= x < 2 ** zoom or not 0 <= y < 2 ** zoom:
         return jsonify({'error': '無効な地図タイルです。'}), 400
-    tile_url = f'https://cyberjapanda.gsi.go.jp/xyz/std/{zoom}/{x}/{y}.png'
+    tile_url = f'https://maps.gsi.go.jp/xyz/std/{zoom}/{x}/{y}.png'
     try:
         tile_request = urllib.request.Request(
             tile_url,
@@ -596,6 +625,8 @@ def api_shelter_detail(shelter_id):
                 support_options.append('ペット同伴可')
             if shelter.get('disability') or shelter.get('help'):
                 support_options.append('福祉避難所')
+            if shelter.get('pregnant'):
+                support_options.append('妊婦対応可')
         return jsonify({
             'id': shelter.get('id'),
             'name': shelter.get('name', ''),
@@ -628,11 +659,15 @@ def shelter_search():
 # 全施設一覧ページ
 @app.route('/all_shelters')
 def all_shelters():
+    results = sort_shelters_by_distance(
+        filter_shelters(request.args.get('district'))
+    )
     return render_template(
         'search_results.html',
-        results=sort_shelters_by_distance(
-            filter_shelters(request.args.get('district'))
-        ), current_location=CURRENT_LOCATION
+        results=results,
+        primary_results=results[:3],
+        secondary_results=results[3:],
+        current_location=CURRENT_LOCATION
     )
 
 
@@ -642,9 +677,21 @@ def all_shelters():
 def board():
     resident_instructions = sort_instructions_newest_first([
         instruction_for_display(i)
-        for i in instructions if i.get('target') == '住民'
+        for i in instructions
+        if i.get('target') == '住民' and i.get('status') != '解除'
     ])
     return render_template('board.html', instructions=resident_instructions)
+
+
+@app.route('/resolved_instructions')
+@login_required
+def resolved_instructions():
+    resolved = sort_instructions_newest_first([
+        instruction_for_display(i)
+        for i in instructions
+        if i.get('target') == '住民' and i.get('status') == '解除'
+    ])
+    return render_template('resolved_instructions.html', instructions=resolved)
 
 
 @app.route('/instruction/new', methods=['GET', 'POST'])
@@ -712,6 +759,7 @@ def instruction_dismiss(instruction_id):
     if instruction is not None:
         instruction['status'] = '解除'
         instruction['updated_at'] = get_japan_time()
+        instructions[:] = prune_resolved_instructions(instructions)
         save_instructions()
     return redirect(url_for('board'))
 
@@ -726,14 +774,21 @@ def search_results():
         ]
 
     district = request.args.get('district') or request.form.get('district')
-    results = filter_shelters(district)
-    results = [
-        shelter for shelter in results
+    all_results = sort_shelters_by_distance(filter_shelters(district))
+    filtered_results = [
+        shelter for shelter in all_results
         if all(shelter.get(condition, False) is True for condition in selected_conditions)
+    ]
+    primary_results = filtered_results[:3]
+    primary_ids = {id(shelter) for shelter in primary_results}
+    secondary_results = [
+        shelter for shelter in all_results if id(shelter) not in primary_ids
     ]
     return render_template(
         'search_results.html',
-        results=results,
+        results=all_results,
+        primary_results=primary_results,
+        secondary_results=secondary_results,
         current_location=CURRENT_LOCATION,
         selected_conditions=selected_conditions
     )

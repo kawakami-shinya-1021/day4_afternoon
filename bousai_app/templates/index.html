@@ -9,7 +9,7 @@
   .home-page { color: #202b35; }
   .home-page h2 { margin: 0 0 16px; color: #2457a6; }
   .home-page h3 { margin: 0 0 14px; color: #2457a6; }
-  .home-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 20px; }
+  .home-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
   .home-panel, .weather-panel { padding: 24px; background: #fff; border: 1px solid #e1e7ee; border-radius: 18px; box-shadow: 0 5px 20px rgba(55, 81, 112, .08); }
   .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 16px; color: #465463; }
   .region-list { display: grid; gap: 12px; }
@@ -24,6 +24,11 @@
   .resident-menu a:hover { background: #e4effb; }
   .resident-menu .disabled-action { color: #7b8794; border-color: #d7dde5; background: #f1f3f5; cursor: not-allowed; }
   .menu-divider { padding: 8px 0 0; color: #536273; font-size: 14px; font-weight: 700; text-align: center; }
+  .event-list { display: grid; gap: 0; border: 1px solid #d7e0ea; border-radius: 7px; overflow: hidden; }
+  .event-item { display: block; min-width: 0; padding: 12px 14px; color: #2457a6; background: #fff; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; text-decoration: none; }
+  .event-item + .event-item { border-top: 1px solid #d7e0ea; }
+  .event-item:hover { background: #f2f7fd; }
+  .event-item.disabled-action { color: #536273; cursor: default; }
   .points { margin: 0; padding: 14px; border-radius: 7px; color: #2457a6; background: #f7fafc; text-align: center; }
   .weather-section { margin-top: 24px; }
   .weather-content { min-height: 90px; margin: 0; padding: 18px 22px; border: 1px solid #e1e7ee; border-radius: 14px; background: #fff; box-shadow: 0 5px 20px rgba(55, 81, 112, .08); }
@@ -31,17 +36,17 @@
   .weather-summary strong { color: #2457a6; font-size: 20px; }
   .weather-content ul { margin: 8px 0; padding-left: 22px; }
   .weather-error { color: #b42318; font-weight: 700; }
-  .admin-link { display: inline-block; margin-top: 20px; color: #2457a6; }
-  .home-map { height: 300px; margin: 24px 0; border: 1px solid #cbd5e1; border-radius: 14px; background: #e2e8f0; }
+  .admin-link { display: block; width: fit-content; margin: 20px 0 0; color: #2457a6; }
+  .home-map { height: 300px; margin: 0 0 24px; border: 1px solid #cbd5e1; border-radius: 14px; background: #e2e8f0; }
   @media (max-width: 720px) { .home-grid { grid-template-columns: 1fr; } .home-panel, .weather-panel { padding: 18px; border-radius: 14px; } }
 </style>
 
 <section class="home-page">
   <h2>地域別 災害状況</h2>
-  <div id="shelterMap" class="home-map" aria-label="避難所マップ"></div>
   <div class="home-grid">
     <section class="home-panel" aria-labelledby="regional-status-heading">
       <h3 id="regional-status-heading">地域別 災害状況</h3>
+      <div id="shelterMap" class="home-map" aria-label="避難所マップ"></div>
       <p class="legend"><span>◎ 低</span><span>△ 注意</span><span>⚠ 危険</span></p>
       <div class="region-list">
         {% for region in disaster_regions %}
@@ -58,11 +63,22 @@
     <section class="home-panel" aria-labelledby="resident-menu-heading">
       <h3 id="resident-menu-heading">市民向け操作メニュー</h3>
       <div class="resident-menu">
-        {% if disaster_report_url %}<a href="{{ disaster_report_url }}" target="_blank" rel="noopener noreferrer">災害情報報告ボタン</a>{% else %}<span class="disabled-action" aria-disabled="true">災害情報報告ボタン（URL未設定）</span>{% endif %}
+        {% if disaster_report_url %}<a href="{{ disaster_report_url }}" target="_blank" rel="noopener noreferrer">災害情報報告ボタン</a>{% else %}<span class="disabled-action" aria-disabled="true">Disarepo災害情報報告ボタン</span>{% endif %}
         <a href="{{ url_for('shelter_search') }}">避難所検索画面</a>
-        {% if location_settings_url %}<a href="{{ location_settings_url }}" target="_blank" rel="noopener noreferrer">位置情報許可設定</a>{% else %}<span class="disabled-action" aria-disabled="true">位置情報許可設定（URL未設定）</span>{% endif %}
+        {% if location_settings_url %}<a href="{{ location_settings_url }}" target="_blank" rel="noopener noreferrer">位置情報許可設定</a>{% else %}<span class="disabled-action" aria-disabled="true">位置情報許可設定</span>{% endif %}
         <div class="menu-divider">通常時使用</div>
-        {% if walk_event_url %}<a href="{{ walk_event_url }}" target="_blank" rel="noopener noreferrer">実施中・実施予定のお散歩イベント</a>{% else %}<span class="disabled-action" aria-disabled="true">実施中・実施予定のお散歩イベント（URL未設定）</span>{% endif %}
+        <div class="menu-divider">イベント情報</div>
+        <div class="event-list" aria-label="イベント情報">
+          {% set events = [
+            '【ラリー型】 避難所めぐりポイントラリー',
+            '【健康・運動型】 歩いて貯まる！防災ウォーキング',
+            '【ゲーム・ミッション型】 まち歩き防災クエスト',
+            '【キャンペーン型】 備えて得する！避難ルート確認キャンペーン'
+          ] %}
+          {% for event in events %}
+            {% if walk_event_url %}<a class="event-item" href="{{ walk_event_url }}" target="_blank" rel="noopener noreferrer">{{ event }}</a>{% else %}<span class="event-item disabled-action" aria-disabled="true">{{ event }}</span>{% endif %}
+          {% endfor %}
+        </div>
         <p class="points">お散歩ポイント数<br><strong>0</strong></p>
       </div>
     </section>
