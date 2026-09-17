@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}指示詳細 - 防災アプリ{% endblock %}
+
+{% block content %}
+<style>
+  .instruction-detail { color: #202b35; }
+  .instruction-detail-card { padding: 28px; background: #fff; border: 1px solid #e1e7ee; border-radius: 18px; box-shadow: 0 5px 20px rgba(55, 81, 112, .08); }
+  .instruction-detail-list { display: grid; grid-template-columns: 140px minmax(0, 1fr); margin: 0; }
+  .instruction-detail-list dt, .instruction-detail-list dd { margin: 0; padding: 14px 0; border-bottom: 1px solid #edf1f5; }
+  .instruction-detail-list dt { font-weight: 700; }
+  .instruction-detail-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .instruction-detail-back { display: inline-block; margin-top: 20px; padding: 10px 18px; color: #fff; border-radius: 7px; background: #2e5eae; text-decoration: none; }
+  @media (max-width: 640px) { .instruction-detail-card { padding: 20px; border-radius: 14px; } .instruction-detail-list { grid-template-columns: 1fr; } .instruction-detail-list dt { padding-bottom: 4px; border-bottom: 0; } .instruction-detail-list dd { padding-top: 0; } }
+</style>
+
+<section class="instruction-detail">
+  <h2>指示詳細</h2>
+  <div class="instruction-detail-card">
+    <dl class="instruction-detail-list">
+      <dt>指示タイトル</dt><dd>{{ instruction.title }}</dd>
+      <dt>指示内容</dt><dd class="instruction-detail-content">{{ instruction.content }}</dd>
+      <dt>重要度</dt><dd>{{ instruction.priority }}</dd>
+      <dt>対象地域</dt><dd>{{ instruction.region }}</dd>
+      <dt>対象年齢</dt><dd>{{ instruction.age_groups|join('、') }}</dd>
+      <dt>状態</dt><dd>{{ instruction.status }}{% if instruction.status == '解除' %}【解除済み】{% endif %}</dd>
+    </dl>
+    <a class="instruction-detail-back" href="{{ url_for('board') }}">ボードへ戻る</a>
+  </div>
+</section>
+{% endblock %}

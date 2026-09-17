@@ -133,6 +133,54 @@ def get_japan_time():
     return datetime.now(JST).strftime("%Y年%m月%d日 %H:%M")
 
 
+INSTRUCTION_PRIORITIES = ('低', '中', '高')
+INSTRUCTION_REGIONS = ('全地域', '北部', '南部')
+INSTRUCTION_AGE_GROUPS = ('20代未満を含む', '20〜50代', '60代以上')
+
+
+def instruction_priority(instruction):
+    """旧データを含む指示から表示用の重要度を取得する"""
+    priority = instruction.get('priority')
+    if priority in INSTRUCTION_PRIORITIES:
+        return priority
+    content = instruction.get('content', '')
+    return '高' if '土砂災害' in content or '危険' in content else '低'
+
+
+def instruction_for_display(instruction):
+    """指示一覧・詳細で使う不足項目を補完する"""
+    result = dict(instruction)
+    result['priority'] = instruction_priority(instruction)
+    result['title'] = result.get('title') or '指示・発信'
+    result['region'] = result.get('region') or '全地域'
+    result['age_groups'] = [
+        age_group for age_group in result.get('age_groups', [])
+        if age_group in INSTRUCTION_AGE_GROUPS
+    ]
+    return result
+
+
+def instruction_form_values(source):
+    """指示登録フォームの値を読み込み、許可値を検証する"""
+    title = source.get('title', '').strip()
+    content = source.get('content', '').strip()
+    priority = source.get('priority', '')
+    region = source.get('region', '')
+    age_groups = [age for age in source.getlist('age_groups') if age in INSTRUCTION_AGE_GROUPS]
+    valid = (
+        bool(title) and bool(content) and priority in INSTRUCTION_PRIORITIES
+        and region in INSTRUCTION_REGIONS and bool(age_groups)
+    )
+    return {
+        'title': title,
+        'content': content,
+        'priority': priority,
+        'region': region,
+        'age_groups': age_groups,
+        'valid': valid,
+    }
+
+
 def format_report_time(iso_str):
     """気象庁の発表時刻（ISO形式）をJSTの表示用文字列に変換する"""
     if not iso_str:
@@ -533,8 +581,80 @@ def all_shelters():
 @app.route('/board')
 @login_required
 def board():
-    resident_instructions = [i for i in instructions if i.get('target') == '住民']
+    resident_instructions = [
+        instruction_for_display(i)
+        for i in instructions if i.get('target') == '住民'
+    ]
     return render_template('board.html', instructions=resident_instructions)
+
+
+@app.route('/instruction/new', methods=['GET', 'POST'])
+@login_required
+def instruction_new():
+    form_values = {
+        'title': '', 'content': '', 'priority': '', 'region': '', 'age_groups': []
+    }
+    if request.method == 'POST':
+        form_values = instruction_form_values(request.form)
+        if not form_values['valid']:
+            return render_template(
+                'instruction_new.html', error=True, form_values=form_values,
+                priorities=INSTRUCTION_PRIORITIES, regions=INSTRUCTION_REGIONS,
+                age_groups=INSTRUCTION_AGE_GROUPS
+            )
+
+        now = get_japan_time()
+        instructions.append({
+            'id': max((item.get('id', 0) for item in instructions), default=0) + 1,
+            'target': '住民',
+            'title': form_values['title'],
+            'content': form_values['content'],
+            'priority': form_values['priority'],
+            'region': form_values['region'],
+            'age_groups': form_values['age_groups'],
+            'shelter': '',
+            'status': '発信中',
+            'created_at': now,
+            'updated_at': now,
+        })
+        save_instructions()
+        return redirect(url_for('board'))
+
+    return render_template(
+        'instruction_new.html', form_values=form_values,
+        priorities=INSTRUCTION_PRIORITIES, regions=INSTRUCTION_REGIONS,
+        age_groups=INSTRUCTION_AGE_GROUPS
+    )
+
+
+@app.route('/instruction/<int:instruction_id>')
+@login_required
+def instruction_detail(instruction_id):
+    instruction = next(
+        (item for item in instructions
+         if item.get('id') == instruction_id and item.get('target') == '住民'),
+        None
+    )
+    if instruction is None:
+        return redirect(url_for('board'))
+    return render_template(
+        'instruction_detail.html', instruction=instruction_for_display(instruction)
+    )
+
+
+@app.route('/instruction/<int:instruction_id>/dismiss', methods=['POST'])
+@login_required
+def instruction_dismiss(instruction_id):
+    instruction = next(
+        (item for item in instructions
+         if item.get('id') == instruction_id and item.get('target') == '住民'),
+        None
+    )
+    if instruction is not None:
+        instruction['status'] = '解除'
+        instruction['updated_at'] = get_japan_time()
+        save_instructions()
+    return redirect(url_for('board'))
 
 # 検索結果ページ：templates/search_results.html を返す
 @app.route('/search_results', methods=['GET', 'POST'])

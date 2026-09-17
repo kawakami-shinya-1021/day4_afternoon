@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}新規登録 - 防災アプリ{% endblock %}
+
+{% block content %}
+<style>
+  .instruction-form-page { color: #202b35; font-family: inherit; }
+  .instruction-form-page h2 { margin-bottom: 16px; color: #202b35; }
+  .instruction-form-card { padding: 28px; background: #fff; border: 1px solid #e1e7ee; border-radius: 18px; box-shadow: 0 5px 20px rgba(55, 81, 112, .08); }
+  .instruction-form-field { margin: 0 0 20px; padding: 0; }
+  .instruction-form-field label, .instruction-form-field legend { font-weight: 700; }
+  .instruction-form-field input[type="text"], .instruction-form-field textarea, .instruction-form-field select { width: 100%; margin-top: 7px; padding: 11px 13px; color: #202b35; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; }
+  .instruction-form-field textarea { min-height: 150px; resize: vertical; }
+  .instruction-form-field select { background: #fff; }
+  .instruction-form-field input[type="radio"], .instruction-form-field input[type="checkbox"] { width: auto; margin-right: 7px; }
+  .instruction-choice-group { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; }
+  .instruction-choice-group label { font-weight: 400; }
+  .instruction-form-field legend { padding: 0; }
+  .instruction-form-error { padding: 10px 12px; color: #202b35; background: #fff1f2; border: 1px solid #fecaca; }
+  .instruction-form-actions { display: flex; gap: 10px; padding: 0; }
+  .instruction-form-actions a, .instruction-form-actions button { border-radius: 7px; }
+  .instruction-form-actions a { padding: 10px 24px; color: #202b35; background: #eef2f6; text-decoration: none; }
+  @media (max-width: 640px) { .instruction-form-card { padding: 20px; border-radius: 14px; } .instruction-choice-group { flex-direction: column; gap: 10px; } }
+</style>
+
+<section class="instruction-form-page">
+  <h2>新規登録</h2>
+  {% if error %}<p class="instruction-form-error" role="alert">タイトル、内容、重要度、対象地域、対象年齢をすべて入力してください。</p>{% endif %}
+  <div class="instruction-form-card">
+    <form method="post" action="{{ url_for('instruction_new') }}">
+      <p class="instruction-form-field"><label for="title">指示タイトル</label><input id="title" name="title" type="text" required value="{{ form_values.title }}"></p>
+      <p class="instruction-form-field"><label for="content">指示内容</label><textarea id="content" name="content" required>{{ form_values.content }}</textarea></p>
+      <fieldset class="instruction-form-field"><legend>重要度</legend><div class="instruction-choice-group">{% for priority in priorities %}<label><input type="radio" name="priority" value="{{ priority }}" required{% if form_values.priority == priority %} checked{% endif %}>{{ priority }}</label>{% endfor %}</div></fieldset>
+      <p class="instruction-form-field"><label for="region">対象地域</label><select id="region" name="region" required><option value="">選択してください</option>{% for region in regions %}<option value="{{ region }}"{% if form_values.region == region %} selected{% endif %}>{{ region }}</option>{% endfor %}</select></p>
+      <fieldset class="instruction-form-field"><legend>対象年齢</legend><div class="instruction-choice-group">{% for age_group in age_groups %}<label><input type="checkbox" name="age_groups" value="{{ age_group }}"{% if age_group in form_values.age_groups %} checked{% endif %}>{{ age_group }}</label>{% endfor %}</div></fieldset>
+      <p class="instruction-form-actions"><a href="{{ url_for('board') }}">戻る</a><button type="submit">送信</button></p>
+    </form>
+  </div>
+</section>
+<script>
+document.querySelector('.instruction-form-page form').addEventListener('submit', function (event) {
+  if (!this.querySelector('input[name="age_groups"]:checked')) {
+    event.preventDefault();
+    alert('対象年齢を1つ以上選択してください。');
+  }
+});
+</script>
+{% endblock %}

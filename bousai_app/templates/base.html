@@ -51,6 +51,12 @@
       text-decoration: none;
     }
 
+    nav a.board-nav-link {
+      display: inline-block;
+      min-width: 150px;
+      text-align: center;
+    }
+
     nav a:hover {
       text-decoration: underline;
     }
@@ -208,7 +214,7 @@
       <a href="/">ホーム</a>
       <a href="/shelter_search">避難所検索</a>
       <a href="/shelter_register">避難所登録</a>
-      <a href="/board">指示・発信ボード</a>
+      <a class="board-nav-link" href="/board">指示・発信ボード</a>
       {% if session.logged_in %}
         ログイン中{% if session.username %}（{{ session.username }}）{% endif %}
         <a href="/logout">ログアウト</a>
