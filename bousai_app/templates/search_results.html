@@ -52,8 +52,6 @@
   .results-secondary {
     margin-top: 16px;
   }
-  
-  /* 上位3件カード */
   .shelter-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 240px;
@@ -76,8 +74,6 @@
     line-height: 1.4;
   }
   .shelter-card-detail a { color: #168bd0; }
-  
-  /* 右側：混雑度とアイコン表示エリア（全体を中央揃え） */
   .shelter-card-meta {
     display: flex;
     flex-direction: row;
@@ -90,13 +86,9 @@
     text-align: center;
     background-color: #fafafa;
   }
-
-  /* 混雑度の文字色 */
   .congestion-green { color: #16a34a; font-weight: bold; }
   .congestion-orange { color: #f17d3f; font-weight: bold; }
   .congestion-red { color: #dc2626; font-weight: bold; }
-
-  /* 機能アイコン（1行固定・中央揃え） */
   .feature-icons {
     display: flex;
     flex-wrap: nowrap;
@@ -120,8 +112,6 @@
     margin-top: 2px;
     white-space: nowrap;
   }
-
-  /* その他の避難所（1行表示） */
   .shelter-card-inline {
     display: flex;
     align-items: center;
@@ -154,13 +144,10 @@
     align-items: center;
     justify-content: center;
   }
-
-  /* 地図ピン用のカスタムアイコン枠削除 */
   .custom-pin-icon {
     background: transparent !important;
     border: none !important;
   }
-
   .results-actions {
     display: flex;
     gap: 20px;
@@ -227,20 +214,11 @@
                 {{ shelter.congestion }}
               </strong>
             </div>
-            
             <div class="feature-icons">
-              {% if shelter.pregnant %}
-                <div class="feature-item"><span class="icon">🤰</span><span class="label">妊婦</span></div>
-              {% endif %}
-              {% if shelter.wheelchair %}
-                <div class="feature-item"><span class="icon">♿</span><span class="label">車いす</span></div>
-              {% endif %}
-              {% if shelter.pet %}
-                <div class="feature-item"><span class="icon">🐾</span><span class="label">ペット同伴</span></div>
-              {% endif %}
-              {% if shelter.disability or shelter.help %}
-                <div class="feature-item"><span class="icon">🤝</span><span class="label">障がいのある方</span></div>
-              {% endif %}
+              {% if shelter.pregnant %}<div class="feature-item"><span class="icon">🤰</span><span class="label">妊婦</span></div>{% endif %}
+              {% if shelter.wheelchair %}<div class="feature-item"><span class="icon">♿</span><span class="label">車いす</span></div>{% endif %}
+              {% if shelter.pet %}<div class="feature-item"><span class="icon">🐾</span><span class="label">ペット同伴</span></div>{% endif %}
+              {% if shelter.disability or shelter.help %}<div class="feature-item"><span class="icon">🤝</span><span class="label">障がいのある方</span></div>{% endif %}
             </div>
           </div>
         </article>
@@ -259,27 +237,13 @@
           <span class="shelter-route">ルート：<a href="https://www.google.com/maps/search/?api=1&query={{ shelter.name }}" target="_blank" rel="noopener noreferrer">マップのリンク</a></span>
           <span class="shelter-address">住所：{{ shelter.address or '未登録' }}</span>
           <span class="shelter-address">詳細：{{ shelter.details or '未登録' }}</span>
-          <span class="shelter-congestion">
-            混雑度：
-            <strong class="{% if shelter.congestion in ['空きあり', '空き有り'] %}congestion-green{% elif '混雑' in shelter.congestion %}congestion-orange{% elif shelter.congestion == '満員' %}congestion-red{% endif %}">
-              {{ shelter.congestion }}
-            </strong>
-          </span>
-          
+          <span class="shelter-congestion">混雑度：<strong class="{% if shelter.congestion in ['空きあり', '空き有り'] %}congestion-green{% elif '混雑' in shelter.congestion %}congestion-orange{% elif shelter.congestion == '満員' %}congestion-red{% endif %}">{{ shelter.congestion }}</strong></span>
           <div class="feature-icons-inline">
             <div class="feature-icons">
-              {% if shelter.pregnant %}
-                <div class="feature-item"><span class="icon">🤰</span><span class="label">妊婦</span></div>
-              {% endif %}
-              {% if shelter.wheelchair %}
-                <div class="feature-item"><span class="icon">♿</span><span class="label">車いす</span></div>
-              {% endif %}
-              {% if shelter.pet %}
-                <div class="feature-item"><span class="icon">🐾</span><span class="label">ペット同伴</span></div>
-              {% endif %}
-              {% if shelter.disability or shelter.help %}
-                <div class="feature-item"><span class="icon">🤝</span><span class="label">障がいのある方</span></div>
-              {% endif %}
+              {% if shelter.pregnant %}<div class="feature-item"><span class="icon">🤰</span><span class="label">妊婦</span></div>{% endif %}
+              {% if shelter.wheelchair %}<div class="feature-item"><span class="icon">♿</span><span class="label">車いす</span></div>{% endif %}
+              {% if shelter.pet %}<div class="feature-item"><span class="icon">🐾</span><span class="label">ペット同伴</span></div>{% endif %}
+              {% if shelter.disability or shelter.help %}<div class="feature-item"><span class="icon">🤝</span><span class="label">障がいのある方</span></div>{% endif %}
             </div>
           </div>
         </div>
@@ -318,10 +282,10 @@
 
     const map = L.map('map').setView([currentLat, currentLng], 14);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
-}).addTo(map);
+    L.tileLayer('/api/map-tiles/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院</a>'
+    }).addTo(map);
 
     L.circleMarker([currentLat, currentLng], {
       radius: 9,
@@ -329,7 +293,7 @@
       fillColor: '#3b82f6',
       fillOpacity: 0.85,
       weight: 3
-    }).addTo(map).bindPopup("<b>現在地</b>");
+    }).addTo(map).bindPopup('<b>現在地</b>');
 
     const pinIcon = L.divIcon({
       html: '<span style="font-size: 26px; line-height: 1;">📍</span>',

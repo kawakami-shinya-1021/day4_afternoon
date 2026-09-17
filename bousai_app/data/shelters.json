@@ -58,20 +58,5 @@
     "pet": false,
     "help": true,
     "medical": false
-  },
-  {
-    "id": 6,
-    "details": "",
-    "name": "かわｋみ",
-    "address": "兵庫県明石市大久保町大窪1092-11",
-    "capacity": 11,
-    "support_options": [
-      "車いす対応可",
-      "ペット同伴可",
-      "福祉避難所"
-    ],
-    "wheelchair": true,
-    "pet": true,
-    "disability": true
   }
 ]

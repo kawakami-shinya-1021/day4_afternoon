@@ -1,75 +1,131 @@
 {% extends "base.html" %}
 
+{% block title %}防災アプリ - 青森市{% endblock %}
+
 {% block content %}
-<!-- 避難所マップ -->
-<h2>避難所マップ</h2>
-<div id="shelterMap" style="height: 300px;"></div>
-
-<!-- 気象警報・注意報 -->
-<h2>青森市 気象警報・注意報</h2>
-<p>10分おきに自動更新されます。</p>
-<div id="weatherContent">
-  <p>読み込み中...</p>
-</div>
-
-<!-- Leaflet の読み込み -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  .home-page { color: #202b35; }
+  .home-page h2 { margin: 0 0 16px; color: #2457a6; }
+  .home-page h3 { margin: 0 0 14px; color: #2457a6; }
+  .home-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 20px; }
+  .home-panel, .weather-panel { padding: 24px; background: #fff; border: 1px solid #e1e7ee; border-radius: 18px; box-shadow: 0 5px 20px rgba(55, 81, 112, .08); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 16px; color: #465463; }
+  .region-list { display: grid; gap: 12px; }
+  .region-card { padding: 14px 16px; border-left: 6px solid #2f855a; border-radius: 8px; background: #f6fbf8; }
+  .region-card.caution { border-left-color: #d97706; background: #fffaf0; }
+  .region-heading { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; margin-bottom: 7px; }
+  .region-heading strong { font-size: 18px; }
+  .risk-level { font-weight: 700; }
+  .region-card p { margin: 5px 0 0; overflow-wrap: anywhere; }
+  .resident-menu { display: grid; gap: 10px; }
+  .resident-menu a, .resident-menu .disabled-action { display: flex; min-height: 52px; align-items: center; justify-content: center; padding: 12px 16px; border: 1px solid #b9cbe3; border-radius: 7px; color: #2457a6; background: #f2f7fd; font-weight: 700; text-align: center; text-decoration: none; overflow-wrap: anywhere; }
+  .resident-menu a:hover { background: #e4effb; }
+  .resident-menu .disabled-action { color: #7b8794; border-color: #d7dde5; background: #f1f3f5; cursor: not-allowed; }
+  .menu-divider { padding: 8px 0 0; color: #536273; font-size: 14px; font-weight: 700; text-align: center; }
+  .points { margin: 0; padding: 14px; border-radius: 7px; color: #2457a6; background: #f7fafc; text-align: center; }
+  .weather-section { margin-top: 24px; }
+  .weather-content { min-height: 90px; margin: 0; padding: 18px 22px; border: 1px solid #e1e7ee; border-radius: 14px; background: #fff; box-shadow: 0 5px 20px rgba(55, 81, 112, .08); }
+  .weather-summary { display: flex; flex-wrap: wrap; gap: 18px 28px; margin: 0 0 12px; }
+  .weather-summary strong { color: #2457a6; font-size: 20px; }
+  .weather-content ul { margin: 8px 0; padding-left: 22px; }
+  .weather-error { color: #b42318; font-weight: 700; }
+  .admin-link { display: inline-block; margin-top: 20px; color: #2457a6; }
+  .home-map { height: 300px; margin: 24px 0; border: 1px solid #cbd5e1; border-radius: 14px; background: #e2e8f0; }
+  @media (max-width: 720px) { .home-grid { grid-template-columns: 1fr; } .home-panel, .weather-panel { padding: 18px; border-radius: 14px; } }
+</style>
+
+<section class="home-page">
+  <h2>地域別 災害状況</h2>
+  <div id="shelterMap" class="home-map" aria-label="避難所マップ"></div>
+  <div class="home-grid">
+    <section class="home-panel" aria-labelledby="regional-status-heading">
+      <h3 id="regional-status-heading">地域別 災害状況</h3>
+      <p class="legend"><span>◎ 低</span><span>△ 注意</span><span>⚠ 危険</span></p>
+      <div class="region-list">
+        {% for region in disaster_regions %}
+        <article class="region-card{% if region.level == '注意' %} caution{% endif %}">
+          <div class="region-heading"><strong>{{ region.symbol }} {{ region.name }}</strong><span class="risk-level">危険度: {{ region.level }}</span></div>
+          <p><strong>主なリスク:</strong> {{ region.risk }}</p>
+          <p><strong>現在の状況:</strong> {{ region.situation }}</p>
+          <p><strong>対応:</strong> {{ region.response }}</p>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="home-panel" aria-labelledby="resident-menu-heading">
+      <h3 id="resident-menu-heading">市民向け操作メニュー</h3>
+      <div class="resident-menu">
+        {% if disaster_report_url %}<a href="{{ disaster_report_url }}" target="_blank" rel="noopener noreferrer">災害情報報告ボタン</a>{% else %}<span class="disabled-action" aria-disabled="true">災害情報報告ボタン（URL未設定）</span>{% endif %}
+        <a href="{{ url_for('shelter_search') }}">避難所検索画面</a>
+        {% if location_settings_url %}<a href="{{ location_settings_url }}" target="_blank" rel="noopener noreferrer">位置情報許可設定</a>{% else %}<span class="disabled-action" aria-disabled="true">位置情報許可設定（URL未設定）</span>{% endif %}
+        <div class="menu-divider">通常時使用</div>
+        {% if walk_event_url %}<a href="{{ walk_event_url }}" target="_blank" rel="noopener noreferrer">実施中・実施予定のお散歩イベント</a>{% else %}<span class="disabled-action" aria-disabled="true">実施中・実施予定のお散歩イベント（URL未設定）</span>{% endif %}
+        <p class="points">お散歩ポイント数<br><strong>0</strong></p>
+      </div>
+    </section>
+  </div>
+
+  <section class="weather-section" aria-labelledby="weather-heading">
+    <h2 id="weather-heading">青森市 気象警報・注意報</h2>
+    <div id="weatherContent" class="weather-content" aria-live="polite"><p>気象情報を取得しています...</p></div>
+  </section>
+  <a class="admin-link" href="{{ url_for('login') }}">管理者ログイン</a>
+</section>
+
+<script id="home-map-data" type="application/json">{{ {'location': current_location, 'shelters': map_shelters}|tojson|safe }}</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const data = JSON.parse(document.getElementById('home-map-data').textContent);
+  const map = L.map('shelterMap').setView([data.location.lat, data.location.lng], 13);
+  L.tileLayer('/api/map-tiles/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院</a>'
+  }).addTo(map);
+  L.circleMarker([data.location.lat, data.location.lng], {
+    radius: 9, color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: .85, weight: 3
+  }).addTo(map).bindPopup('<b>現在地</b><br>' + data.location.address);
+  data.shelters.forEach(function (shelter) {
+    const latitude = shelter.latitude ?? shelter.lat;
+    const longitude = shelter.longitude ?? shelter.lng;
+    if (latitude === undefined || longitude === undefined) return;
+    L.marker([latitude, longitude]).addTo(map).bindPopup('<b>' + shelter.name + '</b><br>' + (shelter.address || '住所未登録'));
+  });
+});
+</script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // 地図の初期化（藤沢市周辺を中心に設定）
-    const map = L.map('shelterMap').setView([35.3390, 139.4903], 12);
+document.addEventListener('DOMContentLoaded', function () {
+  const weatherContent = document.getElementById('weatherContent');
 
-    // OpenStreetMapタイルを追加
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        referrerPolicy: 'strict-origin-when-cross-origin'
-    }).addTo(map);
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, function (character) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[character];
+    });
+  }
 
-    // 気象警報・注意報の自動更新機能
-    function updateWeatherWarnings() {
-        fetch('/api/weather_warnings')
-            .then(response => response.json())
-            .then(data => {
-                console.log('気象情報を更新しました:', data);
-                updateWeatherContent(data);
-            })
-            .catch(error => {
-                console.error('気象情報の更新に失敗しました:', error);
-            });
+  function renderWeather(data) {
+    if (data.error) {
+      weatherContent.innerHTML = '<p class="weather-error">' + escapeHtml(data.error_message || '気象情報を取得できませんでした。') + '</p>';
+      return;
     }
+    const warnings = data.warnings || [];
+    const warningMarkup = warnings.length
+      ? '<ul>' + warnings.map(function (warning) { return '<li>' + escapeHtml(warning.name) + '（' + escapeHtml(warning.status) + '）</li>'; }).join('') + '</ul>'
+      : '<p>現在、発表中または継続中の警報・注意報はありません。</p>';
+    const temperature = data.temperature === null || data.temperature === undefined ? '未取得' : escapeHtml(data.temperature) + '℃';
+    weatherContent.innerHTML = '<div class="weather-summary"><span>対象地域: <strong>' + escapeHtml(data.area_name || '青森市') + '</strong></span><span>現在の気温: <strong>' + temperature + '</strong></span></div>' + warningMarkup + '<p>データ取得時刻: ' + escapeHtml(data.last_fetch_time || '不明') + '</p><p>気象庁の発表時刻: ' + escapeHtml(data.report_time || '不明') + '</p>';
+  }
 
-    function updateWeatherContent(data) {
-        const weatherContent = document.getElementById('weatherContent');
-
-        if (data.error) {
-            weatherContent.innerHTML = '<p>気象情報の取得に失敗しました</p>';
-            return;
-        }
-
-        let warningsHtml = '';
-        if (data.warnings && data.warnings.length > 0) {
-            warningsHtml = '<ul>';
-            data.warnings.forEach(warning => {
-                warningsHtml += `<li>${warning.name}（${warning.status}）</li>`;
-            });
-            warningsHtml += '</ul>';
-        } else {
-            warningsHtml = '<p>現在、警報・注意報は発表されていません</p>';
-        }
-
-        weatherContent.innerHTML = `
-            <p>対象地域: ${data.area_name || '青森市'}</p>
-            ${warningsHtml}
-            <p>最終確認: <span id="lastFetchTime">${data.last_fetch_time || '更新中...'}</span></p>
-            <p>気象庁最終発表: ${data.report_time || '不明'}</p>
-        `;
-    }
-
-    // 初回表示＋10分（600,000ミリ秒）おきに自動更新
-    updateWeatherWarnings();
-    setInterval(updateWeatherWarnings, 600000);
+  function updateWeather() {
+    fetch('{{ url_for("api_weather_warnings") }}').then(function (response) { return response.json(); }).then(renderWeather).catch(function () {
+      renderWeather({error: true, error_message: '気象情報の取得に失敗しました。'});
+    });
+  }
+  updateWeather();
+  setInterval(updateWeather, 600000);
 });
 </script>
 {% endblock %}

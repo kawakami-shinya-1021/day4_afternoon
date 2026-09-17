@@ -23,7 +23,7 @@
       <dt>重要度</dt><dd>{{ instruction.priority }}</dd>
       <dt>対象地域</dt><dd>{{ instruction.region }}</dd>
       <dt>対象年齢</dt><dd>{{ instruction.age_groups|join('、') }}</dd>
-      <dt>状態</dt><dd>{{ instruction.status }}{% if instruction.status == '解除' %}【解除済み】{% endif %}</dd>
+      <dt>状態</dt><dd>{{ instruction.status }}</dd>
     </dl>
     <a class="instruction-detail-back" href="{{ url_for('board') }}">ボードへ戻る</a>
   </div>

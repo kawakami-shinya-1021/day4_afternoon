@@ -4,45 +4,182 @@
 
 {% block content %}
 <style>
-  .instruction-form-page { color: #202b35; font-family: inherit; }
-  .instruction-form-page h2 { margin-bottom: 16px; color: #202b35; }
-  .instruction-form-card { padding: 28px; background: #fff; border: 1px solid #e1e7ee; border-radius: 18px; box-shadow: 0 5px 20px rgba(55, 81, 112, .08); }
-  .instruction-form-field { margin: 0 0 20px; padding: 0; }
-  .instruction-form-field label, .instruction-form-field legend { font-weight: 700; }
-  .instruction-form-field input[type="text"], .instruction-form-field textarea, .instruction-form-field select { width: 100%; margin-top: 7px; padding: 11px 13px; color: #202b35; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; }
-  .instruction-form-field textarea { min-height: 150px; resize: vertical; }
-  .instruction-form-field select { background: #fff; }
-  .instruction-form-field input[type="radio"], .instruction-form-field input[type="checkbox"] { width: auto; margin-right: 7px; }
-  .instruction-choice-group { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; }
-  .instruction-choice-group label { font-weight: 400; }
-  .instruction-form-field legend { padding: 0; }
-  .instruction-form-error { padding: 10px 12px; color: #202b35; background: #fff1f2; border: 1px solid #fecaca; }
-  .instruction-form-actions { display: flex; gap: 10px; padding: 0; }
-  .instruction-form-actions a, .instruction-form-actions button { border-radius: 7px; }
-  .instruction-form-actions a { padding: 10px 24px; color: #202b35; background: #eef2f6; text-decoration: none; }
-  @media (max-width: 640px) { .instruction-form-card { padding: 20px; border-radius: 14px; } .instruction-choice-group { flex-direction: column; gap: 10px; } }
+  .instruction-register-page {
+    width: min(100%, 950px);
+    margin: 0 auto;
+    color: #202b35;
+    font-family: inherit;
+  }
+  .instruction-register-page h2 {
+    margin-bottom: 16px;
+    color: #202b35;
+    font-family: inherit;
+  }
+  .register-panel {
+    margin-top: 0;
+    padding: 36px 28px 34px;
+    border: 1px solid #eef2f6;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 5px 20px rgba(52, 79, 110, .08);
+  }
+  .instruction-register-page .register-form {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .form-label,
+  .choice-label {
+    color: #202b35;
+    font-family: inherit;
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .form-label { padding-top: 9px; }
+  .form-control,
+  .region-select {
+    width: 100%;
+    margin: 0;
+    padding: 11px 13px;
+    border: 1px solid #9aa4ad;
+    border-radius: 7px;
+    color: #202b35;
+    background: #fff;
+    font: inherit;
+    line-height: inherit;
+  }
+  .form-control:focus,
+  .region-select:focus { outline: 3px solid #cfe0f5; border-color: #2457a6; }
+  .form-control::placeholder { color: #202b35; opacity: 1; }
+  .content-control { min-height: 104px; resize: vertical; }
+  .priority-options,
+  .age-options { display: grid; gap: 8px; padding-top: 7px; }
+  .choice-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .choice-label input { width: 18px; height: 18px; margin: 0; accent-color: #2457a6; }
+  .form-actions { display: flex; justify-content: center; gap: 18px; margin-top: 30px; }
+  .submit-button,
+  .back-link {
+    min-width: 170px;
+    padding: 11px 20px;
+    border: 1px solid #9aa4ad;
+    border-radius: 7px;
+    text-align: center;
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .submit-button { color: #fff; background: #2457a6; }
+  .submit-button:hover { background: #1d4b96; }
+  .back-link { color: #202b35; background: #fff; }
+  .back-link:hover { background: #f0f5fc; }
+  .form-error {
+    max-width: 680px;
+    margin: 0 auto 20px;
+    padding: 12px 16px;
+    border: 1px solid #c34d3e;
+    color: #202b35;
+    background: #fff0ee;
+  }
+  @media (max-width: 640px) {
+    .register-panel { padding: 24px 16px; }
+    .form-row { grid-template-columns: 1fr; gap: 7px; margin-bottom: 19px; }
+    .form-label { padding-top: 0; font-size: 18px; }
+    .form-actions { flex-direction: column; align-items: stretch; }
+  }
 </style>
 
-<section class="instruction-form-page">
+<div class="instruction-register-page">
   <h2>新規登録</h2>
-  {% if error %}<p class="instruction-form-error" role="alert">タイトル、内容、重要度、対象地域、対象年齢をすべて入力してください。</p>{% endif %}
-  <div class="instruction-form-card">
-    <form method="post" action="{{ url_for('instruction_new') }}">
-      <p class="instruction-form-field"><label for="title">指示タイトル</label><input id="title" name="title" type="text" required value="{{ form_values.title }}"></p>
-      <p class="instruction-form-field"><label for="content">指示内容</label><textarea id="content" name="content" required>{{ form_values.content }}</textarea></p>
-      <fieldset class="instruction-form-field"><legend>重要度</legend><div class="instruction-choice-group">{% for priority in priorities %}<label><input type="radio" name="priority" value="{{ priority }}" required{% if form_values.priority == priority %} checked{% endif %}>{{ priority }}</label>{% endfor %}</div></fieldset>
-      <p class="instruction-form-field"><label for="region">対象地域</label><select id="region" name="region" required><option value="">選択してください</option>{% for region in regions %}<option value="{{ region }}"{% if form_values.region == region %} selected{% endif %}>{{ region }}</option>{% endfor %}</select></p>
-      <fieldset class="instruction-form-field"><legend>対象年齢</legend><div class="instruction-choice-group">{% for age_group in age_groups %}<label><input type="checkbox" name="age_groups" value="{{ age_group }}"{% if age_group in form_values.age_groups %} checked{% endif %}>{{ age_group }}</label>{% endfor %}</div></fieldset>
-      <p class="instruction-form-actions"><a href="{{ url_for('board') }}">戻る</a><button type="submit">送信</button></p>
+  <div class="register-panel">
+    {% if error %}
+      <p class="form-error" role="alert">タイトル、内容、重要度、対象地域、対象年齢をすべて入力してください。</p>
+    {% endif %}
+
+    <form class="register-form" method="post" id="instructionRegisterForm" action="{{ url_for('instruction_new') }}">
+      <div class="form-row">
+        <label class="form-label" for="title">指示タイトル</label>
+        <input class="form-control" type="text" id="title" name="title" value="{{ form_values.title }}" placeholder="（自由入力）" required>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label" for="content">指示内容</label>
+        <textarea class="form-control content-control" id="content" name="content" placeholder="（自由入力）" required>{{ form_values.content }}</textarea>
+      </div>
+
+      <div class="form-row">
+        <span class="form-label">重要度</span>
+        <div class="priority-options">
+          {% for priority in priorities %}
+          <label class="choice-label">
+            <input type="radio" name="priority" value="{{ priority }}"{% if form_values.priority == priority %} checked{% endif %} required>
+            {{ priority }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label" for="region">対象地域</label>
+        <select class="region-select" id="region" name="region" required>
+          <option value="">▼ 選択してください</option>
+          {% for region in regions %}
+          <option value="{{ region }}"{% if form_values.region == region %} selected{% endif %}>{{ region }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-row">
+        <span class="form-label">対象年齢</span>
+        <div class="age-options">
+          {% for age_group in age_groups %}
+          <label class="choice-label">
+            <input class="age-group-input" type="checkbox" name="age_groups" value="{{ age_group }}"{% if loop.first %} required{% endif %}{% if age_group in form_values.age_groups %} checked{% endif %}>
+            {{ age_group }}
+          </label>
+          {% endfor %}
+          <label class="choice-label">
+            <input id="all-age-groups" class="age-group-input" type="checkbox" name="age_groups" value="全て"{% if age_groups|select('in', form_values.age_groups)|list|length == age_groups|length %} checked{% endif %}>
+            全て
+          </label>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a class="back-link" href="{{ url_for('board') }}">戻る</a>
+        <button class="submit-button" type="submit">送信</button>
+      </div>
     </form>
   </div>
-</section>
+</div>
 <script>
-document.querySelector('.instruction-form-page form').addEventListener('submit', function (event) {
-  if (!this.querySelector('input[name="age_groups"]:checked')) {
-    event.preventDefault();
-    alert('対象年齢を1つ以上選択してください。');
-  }
+document.getElementById('all-age-groups').addEventListener('change', function () {
+  document.querySelectorAll('.age-group-input:not(#all-age-groups)').forEach(function (input) {
+    input.checked = this.checked;
+  }, this);
+});
+
+document.querySelectorAll('.age-group-input:not(#all-age-groups)').forEach(function (input) {
+  input.addEventListener('change', function () {
+    const allAgeGroups = document.getElementById('all-age-groups');
+    allAgeGroups.checked = Array.from(document.querySelectorAll('.age-group-input:not(#all-age-groups)')).every(function (ageInput) {
+      return ageInput.checked;
+    });
+  });
 });
 </script>
 {% endblock %}

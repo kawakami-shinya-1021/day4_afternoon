@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Leaflet.js 地図ライブラリ -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  .search-results-page { color: #20252b; }
+  .search-results-page h2 {
+    margin: 0 0 18px;
+    color: #111827;
+    font-size: clamp(24px, 3vw, 32px);
+    line-height: 1.35;
+  }
+  main .search-results-page .results-notice {
+    margin: 0 0 4px;
+    padding: 12px 16px;
+    border: 1px solid #999;
+    background: #d9d9d9;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .results-group {
+    margin-top: 16px;
+    padding: 22px;
+    border: 2px solid #333;
+    background: #fff;
+  }
+  .results-group-primary {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) minmax(420px, 1.4fr);
+    gap: 16px;
+  }
+  .results-map-column,
+  .results-list-column,
+  .results-secondary-column { min-width: 0; }
+  .results-map {
+    height: 340px;
+    border: 1px solid #aaa;
+    background: #e5e7eb;
+    z-index: 1;
+  }
+  .results-group-title {
+    margin: 0 0 16px;
+    padding: 12px 10px;
+    border: 1px solid #aaa;
+    background: #d9d9d9;
+    font-size: 18px;
+    font-weight: 400;
+  }
+  .results-secondary {
+    margin-top: 16px;
+  }
+  
+  /* 上位3件カード */
+  .shelter-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    min-height: 95px;
+    margin-bottom: 12px;
+    border: 1px solid #aaa;
+    background: #fff;
+  }
+  .shelter-card:last-child { margin-bottom: 0; }
+  .shelter-card-main { padding: 10px 12px; }
+  .shelter-card-name {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1.3;
+  }
+  .shelter-card-detail {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .shelter-card-detail a { color: #168bd0; }
+  
+  /* 右側：混雑度とアイコン表示エリア（全体を中央揃え） */
+  .shelter-card-meta {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border-left: 1px solid #aaa;
+    font-size: 14px;
+    text-align: center;
+    background-color: #fafafa;
+  }
+
+  /* 混雑度の文字色 */
+  .congestion-green { color: #16a34a; font-weight: bold; }
+  .congestion-orange { color: #f17d3f; font-weight: bold; }
+  .congestion-red { color: #dc2626; font-weight: bold; }
+
+  /* 機能アイコン（1行固定・中央揃え） */
+  .feature-icons {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+  }
+  .feature-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.1;
+    min-width: 36px;
+    text-align: center;
+  }
+  .feature-item .icon { font-size: 18px; }
+  .feature-item .label {
+    font-size: 9px;
+    color: #374151;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+
+  /* その他の避難所（1行表示） */
+  .shelter-card-inline {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px 16px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    border: 1px solid #aaa;
+    background: #fff;
+    font-size: 14px;
+  }
+  .shelter-card-inline:last-child { margin-bottom: 0; }
+  .shelter-card-inline .shelter-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: #111827;
+    white-space: nowrap;
+  }
+  .shelter-card-inline .shelter-route { white-space: nowrap; }
+  .shelter-card-inline .shelter-route a { color: #168bd0; }
+  .shelter-card-inline .shelter-address { color: #374151; }
+  .shelter-card-inline .shelter-congestion {
+    font-size: 14px;
+    color: #4b5563;
+    white-space: nowrap;
+  }
+  .shelter-card-inline .feature-icons-inline {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 地図ピン用のカスタムアイコン枠削除 */
+  .custom-pin-icon {
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .results-actions {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+  }
+  .results-actions a {
+    display: inline-flex;
+    min-width: 145px;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    border: 1px solid #9aa8b5;
+    color: #263746;
+    background: #deedf7;
+    text-decoration: none;
+  }
+  .results-actions a:hover { background: #c8e1f0; }
+  .results-empty {
+    padding: 18px 12px;
+    border: 1px solid #aaa;
+    font-size: 15px;
+  }
+  .shelter-card-detail details,
+  .shelter-card-detail .details { margin-top: 6px; }
+  @media (max-width: 768px) {
+    .results-group { padding: 16px; }
+    .results-group-primary { grid-template-columns: 1fr; }
+    .shelter-card { grid-template-columns: minmax(0, 1fr) 220px; }
+    .results-map { height: 260px; }
+    .results-actions { flex-wrap: wrap; gap: 10px; }
+    .results-actions a { flex: 1 1 140px; }
+    .shelter-card-inline { flex-wrap: wrap; }
+    .shelter-card-inline .feature-icons-inline { margin-left: 0; }
+  }
+</style>
+
+<section class="search-results-page">
+  <h2>避難所検索結果表示画面</h2>
+  <p class="results-notice">現在地から近い避難所はこちらです。速やかに避難をお願いします。</p>
+
+  <div class="results-group results-group-primary">
+    <div class="results-map-column">
+      <div id="map" class="results-map" aria-label="避難所マップ"></div>
+    </div>
+
+    <div class="results-list-column">
+      <h3 class="results-group-title">現在地に近い避難所</h3>
+      {% if results %}
+        {% for shelter in results[:3] %}
+        <article class="shelter-card">
+          <div class="shelter-card-main">
+            <p class="shelter-card-name">{{ loop.index }}．{{ shelter.name }}</p>
+            <p class="shelter-card-detail">
+              ルート：<a href="https://www.google.com/maps/search/?api=1&query={{ shelter.name }}" target="_blank" rel="noopener noreferrer">マップのリンク</a><br>
+              住所：{{ shelter.address or '未登録' }}<br>
+              詳細：{{ shelter.details or '未登録' }}
+            </p>
+          </div>
+          <div class="shelter-card-meta">
+            <div>
+              混雑度<br>
+              <strong class="{% if shelter.congestion in ['空きあり', '空き有り'] %}congestion-green{% elif '混雑' in shelter.congestion %}congestion-orange{% elif shelter.congestion == '満員' %}congestion-red{% endif %}">
+                {{ shelter.congestion }}
+              </strong>
+            </div>
+            
+            <div class="feature-icons">
+              {% if shelter.pregnant %}
+                <div class="feature-item"><span class="icon">🤰</span><span class="label">妊婦</span></div>
+              {% endif %}
+              {% if shelter.wheelchair %}
+                <div class="feature-item"><span class="icon">♿</span><span class="label">車いす</span></div>
+              {% endif %}
+              {% if shelter.pet %}
+                <div class="feature-item"><span class="icon">🐾</span><span class="label">ペット同伴</span></div>
+              {% endif %}
+              {% if shelter.disability or shelter.help %}
+                <div class="feature-item"><span class="icon">🤝</span><span class="label">障がいのある方</span></div>
+              {% endif %}
+            </div>
+          </div>
+        </article>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="results-group results-secondary">
+    <div class="results-secondary-column">
+      <h3 class="results-group-title">その他の避難所はこちら</h3>
+      {% if results and results[3:] %}
+        {% for shelter in results[3:] %}
+        <div class="shelter-card-inline">
+          <span class="shelter-name">{{ loop.index + 3 }}．{{ shelter.name }}</span>
+          <span class="shelter-route">ルート：<a href="https://www.google.com/maps/search/?api=1&query={{ shelter.name }}" target="_blank" rel="noopener noreferrer">マップのリンク</a></span>
+          <span class="shelter-address">住所：{{ shelter.address or '未登録' }}</span>
+          <span class="shelter-address">詳細：{{ shelter.details or '未登録' }}</span>
+          <span class="shelter-congestion">
+            混雑度：
+            <strong class="{% if shelter.congestion in ['空きあり', '空き有り'] %}congestion-green{% elif '混雑' in shelter.congestion %}congestion-orange{% elif shelter.congestion == '満員' %}congestion-red{% endif %}">
+              {{ shelter.congestion }}
+            </strong>
+          </span>
+          
+          <div class="feature-icons-inline">
+            <div class="feature-icons">
+              {% if shelter.pregnant %}
+                <div class="feature-item"><span class="icon">🤰</span><span class="label">妊婦</span></div>
+              {% endif %}
+              {% if shelter.wheelchair %}
+                <div class="feature-item"><span class="icon">♿</span><span class="label">車いす</span></div>
+              {% endif %}
+              {% if shelter.pet %}
+                <div class="feature-item"><span class="icon">🐾</span><span class="label">ペット同伴</span></div>
+              {% endif %}
+              {% if shelter.disability or shelter.help %}
+                <div class="feature-item"><span class="icon">🤝</span><span class="label">障がいのある方</span></div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% elif not results %}
+        <p class="results-empty">該当する避難所が見つかりませんでした</p>
+      {% else %}
+        <p class="results-empty">4番目以降の避難所はありません。</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="results-actions">
+    <a href="/shelter_search">検索に戻る</a>
+    <a href="/">トップページへ戻る</a>
+  </div>
+</section>
+
+<!-- Jinja2のデータを専用のJSONエリアに配置 -->
+<script id="current-location-data" type="application/json">
+  {{ current_location|tojson|safe }}
+</script>
+<script id="shelter-data" type="application/json">
+  {{ results|tojson|safe }}
+</script>
+
+<!-- 地図描画処理 -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (!window.L) return;
+    const currentLocationElement = document.getElementById('current-location-data');
+    const currentLocation = currentLocationElement ? JSON.parse(currentLocationElement.textContent) : null;
+    if (!currentLocation) return;
+    const currentLat = currentLocation.lat;
+    const currentLng = currentLocation.lng;
+
+    const map = L.map('map').setView([currentLat, currentLng], 14);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+    L.circleMarker([currentLat, currentLng], {
+      radius: 9,
+      color: '#1d4ed8',
+      fillColor: '#3b82f6',
+      fillOpacity: 0.85,
+      weight: 3
+    }).addTo(map).bindPopup("<b>現在地</b>");
+
+    const pinIcon = L.divIcon({
+      html: '<span style="font-size: 26px; line-height: 1;">📍</span>',
+      className: 'custom-pin-icon',
+      iconSize: [28, 28],
+      iconAnchor: [14, 28],
+      popupAnchor: [0, -25]
+    });
+
+    const shelterDataElement = document.getElementById('shelter-data');
+    const shelters = shelterDataElement ? JSON.parse(shelterDataElement.textContent) : [];
+
+    if (Array.isArray(shelters)) {
+      shelters.forEach((shelter, index) => {
+        const latitude = shelter.latitude ?? shelter.lat;
+        const longitude = shelter.longitude ?? shelter.lng;
+        if (latitude !== undefined && longitude !== undefined) {
+          L.marker([latitude, longitude], { icon: pinIcon })
+            .addTo(map)
+            .bindPopup(`<b>${index + 1}．${shelter.name}</b><br>住所：${shelter.address || '未登録'}`);
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

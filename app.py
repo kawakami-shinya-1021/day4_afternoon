@@ -21,7 +21,7 @@ app.secret_key = 'your-secret-key-here'
 
 # 管理者認証情報
 ADMIN_CREDENTIALS = {
-    'admin': '123'
+    'admin': os.environ.get('ADMIN_PASSWORD', '123')
 }
 
 # ────────────────────────────────
@@ -29,12 +29,43 @@ ADMIN_CREDENTIALS = {
 PREFECTURE_CODE = "020000"  # 青森県
 AREA_NAME = "青森市"
 
-# ワークショップ課題：青森市の市区町村コードに変更する
-AREA_CODE = "220100"
+AREA_CODE = "0220100"
 
 WARNING_URL = (
     f"https://www.jma.go.jp/bosai/warning/data/r8/{PREFECTURE_CODE}.json"
 )
+TEMPERATURE_URL = (
+    'https://api.open-meteo.com/v1/forecast'
+    '?latitude=40.8244&longitude=140.74&current=temperature_2m'
+    '&timezone=Asia%2FTokyo'
+)
+
+DISASTER_REPORT_URL = os.environ.get('DISASTER_REPORT_URL', '').strip()
+LOCATION_SETTINGS_URL = os.environ.get('LOCATION_SETTINGS_URL', '').strip()
+WALK_EVENT_URL = os.environ.get('WALK_EVENT_URL', '').strip()
+
+REGIONAL_DISASTER_STATUS = [
+    {
+        'name': '青森駅・中心部', 'symbol': '◎', 'level': '低',
+        'risk': '地震、火災、帰宅困難', 'situation': '現在、大きな情報なし',
+        'response': '周囲の建物や落下物に注意'
+    },
+    {
+        'name': '東部（浅虫・小柳）', 'symbol': '△', 'level': '注意',
+        'risk': '津波、高潮、河川の増水', 'situation': '沿岸部では海面変化に注意',
+        'response': '海岸や川から離れ、高い場所へ避難'
+    },
+    {
+        'name': '西部（三内・新城）', 'symbol': '◎', 'level': '低',
+        'risk': '地震、土砂災害、火災', 'situation': '現在、大きな情報なし',
+        'response': '避難経路と近隣施設を確認'
+    },
+    {
+        'name': '浪岡地区', 'symbol': '△', 'level': '注意',
+        'risk': '大雨、洪水、土砂災害', 'situation': '大雨時は河川の水位上昇に注意',
+        'response': '気象情報を確認し、早めに避難'
+    },
+]
 
 JST = timezone(timedelta(hours=9))
 
@@ -160,13 +191,29 @@ def instruction_for_display(instruction):
     return result
 
 
+def sort_instructions_newest_first(instruction_list):
+    """通知日時を基準に新しい通知から並べる"""
+    def sort_key(instruction):
+        created_at = instruction.get('created_at', '')
+        try:
+            return datetime.strptime(created_at, '%Y年%m月%d日 %H:%M')
+        except (TypeError, ValueError):
+            return datetime.min
+
+    return sorted(instruction_list, key=sort_key, reverse=True)
+
+
 def instruction_form_values(source):
     """指示登録フォームの値を読み込み、許可値を検証する"""
     title = source.get('title', '').strip()
     content = source.get('content', '').strip()
     priority = source.get('priority', '')
     region = source.get('region', '')
-    age_groups = [age for age in source.getlist('age_groups') if age in INSTRUCTION_AGE_GROUPS]
+    submitted_age_groups = source.getlist('age_groups')
+    if '全て' in submitted_age_groups:
+        age_groups = list(INSTRUCTION_AGE_GROUPS)
+    else:
+        age_groups = [age for age in submitted_age_groups if age in INSTRUCTION_AGE_GROUPS]
     valid = (
         bool(title) and bool(content) and priority in INSTRUCTION_PRIORITIES
         and region in INSTRUCTION_REGIONS and bool(age_groups)
@@ -212,30 +259,6 @@ def get_shelter_coordinates(shelter):
         return None, None
 
 
-def geocode_address(address):
-    """住所をNominatimで座標へ変換する。失敗時はNoneを返す"""
-    if not address:
-        return None
-
-    query = quote(address)
-    request_url = (
-        'https://nominatim.openstreetmap.org/search'
-        f'?q={query}&format=jsonv2&limit=1'
-    )
-    try:
-        req = urllib.request.Request(
-            request_url,
-            headers={'User-Agent': 'bousai-app-shelter-geocoder/1.0'}
-        )
-        with urllib.request.urlopen(req, timeout=5) as response:
-            candidates = json.loads(response.read().decode('utf-8'))
-        if not candidates:
-            return None
-        return float(candidates[0]['lat']), float(candidates[0]['lon'])
-    except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError):
-        return None
-
-
 def shelter_form_values(source):
     """フォームまたはJSONから登録項目を読み取り、共通形式にする"""
     if request.is_json:
@@ -274,6 +297,28 @@ def shelter_form_values(source):
         'support_options': support_options,
         'errors': errors,
     }
+
+
+def geocode_address(address):
+    """住所を地理座標へ変換する。失敗時はNoneを返す"""
+    if not address:
+        return None
+    request_url = (
+        'https://nominatim.openstreetmap.org/search'
+        f'?q={quote(address)}&format=jsonv2&limit=1'
+    )
+    try:
+        geocode_request = urllib.request.Request(
+            request_url,
+            headers={'User-Agent': 'bousai-app-shelter-geocoder/1.0'}
+        )
+        with urllib.request.urlopen(geocode_request, timeout=5) as response:
+            candidates = json.loads(response.read().decode('utf-8'))
+        if not candidates:
+            return None
+        return float(candidates[0]['lat']), float(candidates[0]['lon'])
+    except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError):
+        return None
 
 
 def apply_shelter_values(shelter, values):
@@ -377,36 +422,50 @@ def parse_area_warnings(warning_data):
 
 
 def get_weather_warnings():
-    """対象市区町村の警報・注意報を取得する"""
+    """青森市の警報・注意報と現在気温を取得する"""
+    result = {
+        "area_name": AREA_NAME,
+        "warnings": [],
+        "temperature": None,
+        "report_time": "不明",
+        "last_fetch_time": get_japan_time(),
+        "error": False,
+    }
     try:
-        # 青森県の新形式（令和8年～）警報・注意報データを取得
         with urllib.request.urlopen(url=WARNING_URL, timeout=10) as res:
             warning_data = json.loads(res.read())
 
         warnings, report_datetime = parse_area_warnings(warning_data)
-
-        return {
-            "area_name": AREA_NAME,
-            "warnings": warnings,
-            "report_time": format_report_time(report_datetime),
-            "last_fetch_time": get_japan_time()
-        }
-
+        result['warnings'] = warnings
+        result['report_time'] = format_report_time(report_datetime)
     except Exception:
-        return {
-            "area_name": AREA_NAME,
-            "warnings": [],
-            "report_time": "取得失敗",
-            "last_fetch_time": get_japan_time(),
-            "error": True
-        }
+        result['error'] = True
+        result['error_message'] = '気象警報・注意報を取得できませんでした。'
+
+    try:
+        with urllib.request.urlopen(TEMPERATURE_URL, timeout=10) as res:
+            temperature_data = json.loads(res.read())
+        result['temperature'] = temperature_data.get('current', {}).get('temperature_2m')
+    except Exception:
+        result['error'] = True
+        result['error_message'] = '現在気温を取得できませんでした。'
+
+    return result
 
 
-# トップページ：templates/index.html を返す（住民向け指示も表示する）
+# トップページ
 @app.route('/')
 def index():
     resident_notices = [i for i in instructions if i.get('target') == '住民']
-    return render_template('index.html', resident_notices=resident_notices)
+    return render_template(
+        'index.html', resident_notices=resident_notices,
+        disaster_regions=REGIONAL_DISASTER_STATUS,
+        disaster_report_url=DISASTER_REPORT_URL,
+        location_settings_url=LOCATION_SETTINGS_URL,
+        walk_event_url=WALK_EVENT_URL,
+        current_location=CURRENT_LOCATION,
+        map_shelters=shelters,
+    )
 
 # ログインページ
 @app.route('/login', methods=['GET', 'POST'])
@@ -470,7 +529,6 @@ def shelter_register():
         coordinates = geocode_address(values['address'])
         if coordinates:
             shelter['latitude'], shelter['longitude'] = coordinates
-
         shelters.append(shelter)
         save_shelters()
         return render_template(
@@ -493,23 +551,18 @@ def api_geocode():
     if not coordinates:
         return jsonify({'error': '住所が見つからないか、住所検索サービスに接続できませんでした。'}), 404
     latitude, longitude = coordinates
-    return jsonify({
-        'latitude': latitude,
-        'longitude': longitude,
-        'display_name': address,
-    })
+    return jsonify({'latitude': latitude, 'longitude': longitude, 'display_name': address})
 
 
 @app.route('/api/map-tiles/<int:zoom>/<int:x>/<int:y>.png')
-@login_required
 def api_map_tiles(zoom, x, y):
     if not 0 <= zoom <= 19 or not 0 <= x < 2 ** zoom or not 0 <= y < 2 ** zoom:
         return jsonify({'error': '無効な地図タイルです。'}), 400
-    tile_url = f'https://tile.openstreetmap.org/{zoom}/{x}/{y}.png'
+    tile_url = f'https://cyberjapanda.gsi.go.jp/xyz/std/{zoom}/{x}/{y}.png'
     try:
         tile_request = urllib.request.Request(
             tile_url,
-            headers={'User-Agent': 'bousai-app-map-proxy/1.0'}
+            headers={'User-Agent': 'bousai-app-gsi-map-proxy/1.0'}
         )
         with urllib.request.urlopen(tile_request, timeout=5) as response:
             return Response(response.read(), mimetype='image/png')
@@ -523,12 +576,16 @@ def api_shelter_list():
     return jsonify([{'id': shelter.get('id'), 'name': shelter.get('name', '')} for shelter in shelters])
 
 
-@app.route('/api/shelters/<int:shelter_id>', methods=['GET', 'PUT', 'PATCH'])
+@app.route('/api/shelters/<int:shelter_id>', methods=['GET', 'PUT', 'PATCH', 'DELETE'])
 @login_required
 def api_shelter_detail(shelter_id):
     shelter = next((item for item in shelters if item.get('id') == shelter_id), None)
     if shelter is None:
         return jsonify({'error': '避難所が見つかりません。'}), 404
+    if request.method == 'DELETE':
+        shelters.remove(shelter)
+        save_shelters()
+        return jsonify({'message': '避難所を削除しました。'})
     if request.method == 'GET':
         support_options = shelter.get('support_options')
         if support_options is None:
@@ -562,9 +619,10 @@ def api_shelter_detail(shelter_id):
 # 避難所検索ページ
 @app.route('/shelter_search')
 def shelter_search():
+    districts = sorted({shelter.get('district') for shelter in shelters if shelter.get('district')})
     return render_template(
-        'shelter_search.html',
-        current_location=CURRENT_LOCATION
+        'shelter_search.html', districts=districts,
+        shelters=shelters, current_location=CURRENT_LOCATION
     )
 
 # 全施設一覧ページ
@@ -572,8 +630,9 @@ def shelter_search():
 def all_shelters():
     return render_template(
         'search_results.html',
-        results=sort_shelters_by_distance(shelters),
-        current_location=CURRENT_LOCATION
+        results=sort_shelters_by_distance(
+            filter_shelters(request.args.get('district'))
+        ), current_location=CURRENT_LOCATION
     )
 
 
@@ -581,10 +640,10 @@ def all_shelters():
 @app.route('/board')
 @login_required
 def board():
-    resident_instructions = [
+    resident_instructions = sort_instructions_newest_first([
         instruction_for_display(i)
         for i in instructions if i.get('target') == '住民'
-    ]
+    ])
     return render_template('board.html', instructions=resident_instructions)
 
 
@@ -666,7 +725,8 @@ def search_results():
             if request.form.get(condition) == 'on'
         ]
 
-    results = filter_shelters(request.args.get('district'))
+    district = request.args.get('district') or request.form.get('district')
+    results = filter_shelters(district)
     results = [
         shelter for shelter in results
         if all(shelter.get(condition, False) is True for condition in selected_conditions)
@@ -684,10 +744,8 @@ def get_shelters():
     results = filter_shelters(request.args.get('district'))
 
     if not results:
-        # 見つからなければエラー JSON を返す
-        return jsonify({'error': 'No shelters found'}), 404
+        return jsonify({'error': '該当する避難所が見つかりませんでした。'}), 404
 
-    # 見つかったらリストを JSON で返す
     return jsonify(results)
 
 # 気象警報・注意報API
